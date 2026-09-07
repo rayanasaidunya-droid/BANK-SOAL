@@ -7,6 +7,7 @@ import { ProktorView } from './components/ProktorView';
 import { SiswaCbtView } from './components/SiswaCbtView';
 import { AuditLogsModal } from './components/AuditLogsModal';
 import { TpManagementModal } from './components/TpManagementModal';
+import { AiQuestionGeneratorModal } from './components/AiQuestionGeneratorModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { apiService } from './services/api';
 import { Shield, Lock, EyeOff, Layers, CheckCircle2 } from 'lucide-react';
@@ -15,6 +16,7 @@ export default function App() {
   const [currentRole, setCurrentRole] = useState<UserRole>('KOORDINATOR_KURIKULUM');
   const [isAuditOpen, setIsAuditOpen] = useState(false);
   const [isTpModalOpen, setIsTpModalOpen] = useState(false);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -46,6 +48,7 @@ export default function App() {
         onOpenAuditLogs={() => setIsAuditOpen(true)}
         onResetSeed={handleResetSeed}
         onOpenTpManager={() => setIsTpModalOpen(true)}
+        onOpenAiGenerator={() => setIsAiModalOpen(true)}
       />
 
       {/* Seed Reset Notification Banner */}
@@ -156,6 +159,15 @@ export default function App() {
         isOpen={isTpModalOpen}
         onClose={() => setIsTpModalOpen(false)}
         onTpUpdated={() => {
+          setRefreshKey((prev) => prev + 1);
+        }}
+      />
+
+      {/* AI Automatic Question Generator Modal */}
+      <AiQuestionGeneratorModal
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+        onSoalSaved={() => {
           setRefreshKey((prev) => prev + 1);
         }}
       />

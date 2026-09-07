@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { db } from './store';
+import { generateSoalAi } from './geminiService';
 import {
   BankSoalButir,
   PaketUjian,
@@ -380,6 +381,98 @@ apiRouter.post('/bank-soal/items', (req: Request, res: Response) => {
     }
   } catch (err: any) {
     return res.status(500).json({ success: false, message: err?.message || 'Server error' });
+  }
+});
+
+// POST /api/v1/bank-soal/batch-items (Save multiple generated questions)
+apiRouter.post('/bank-soal/batch-items', (req: Request, res: Response) => {
+  try {
+    const { items, mapel_id, jenjang_sekolah, tingkat_kelas, penulis_guru_id, nama_penulis } = req.body;
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ success: false, message: 'Daftar butir soal tidak boleh kosong' });
+    }
+
+    const mapelInfo = db.mapelList.find((m) => m.id === mapel_id);
+    const resolvedJenjang = jenjang_sekolah || mapelInfo?.jenjang_sekolah || 'SD';
+    const resolvedKelas = tingkat_kelas || mapelInfo?.tingkat_kelas || 'Kelas 4 SD';
+
+    const savedItems: BankSoalButir[] = [];
+
+    for (const item of items) {
+      const newId = 'soal-ai-' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+      const newItem: BankSoalButir = {
+        id: newId,
+        mapel_id: item.mapel_id || mapel_id || 'mapel-ipas-sd-4',
+        jenjang_sekolah: item.jenjang_sekolah || resolvedJenjang,
+        tingkat_kelas: item.tingkat_kelas || resolvedKelas,
+        kode_tp: item.kode_tp || undefined,
+        tujuan_pembelajaran: item.tujuan_pembelajaran || undefined,
+        lingkup_materi: item.lingkup_materi || undefined,
+        indikator_soal: item.indikator_soal || undefined,
+        jenis_soal: item.jenis_soal || 'PILIHAN_GANDA',
+        level_kognitif: item.level_kognitif || 'L2',
+        capaian_pembelajaran: item.capaian_pembelajaran || 'Menguasai konsep dan aplikasi materi',
+        stimulus_konten: item.stimulus_konten || '',
+        stimulus_gambar_url: item.stimulus_gambar_url || undefined,
+        pertanyaan_teks: item.pertanyaan_teks || 'Teks pertanyaan',
+        opsi_jawaban_json: Array.isArray(item.opsi_jawaban_json) ? item.opsi_jawaban_json : [],
+        kunci_jawaban_terenkripsi: item.kunci_jawaban_terenkripsi ?? 'opt-1',
+        bobot_nilai: Number(item.bobot_nilai) || (item.jenis_soal === 'ESAI_URAIAN' ? 8 : 2),
+        rubrik_penilaian_esai: item.rubrik_penilaian_esai || undefined,
+        status_validasi: 'TERVALIDASI',
+        penulis_guru_id: penulis_guru_id || 'guru-ai',
+        nama_penulis: nama_penulis || 'AI Generator & Guru Penulis',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      db.butirSoalList.unshift(newItem);
+      savedItems.push(newItem);
+    }
+
+    db.logActivity(
+      penulis_guru_id || 'guru-ai',
+      nama_penulis || 'AI Generator & Guru Penulis',
+      'GURU_PENULIS',
+      'CREATE_BATCH_AI_SOAL',
+      'bank_soal_butir',
+      savedItems[0]?.id || 'batch',
+      `Menyimpan ${savedItems.length} butir soal hasil generasi AI ke Bank Soal (${resolvedJenjang} - ${mapelInfo?.nama_mapel || 'Umum'}).`
+    );
+
+    return res.json({
+      success: true,
+      message: `Berhasil menambahkan ${savedItems.length} butir soal ke Bank Soal!`,
+      data: savedItems,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err?.message || 'Gagal menyimpan batch soal' });
+  }
+});
+
+// POST /api/v1/ai/generate-soal (Generate automatic questions using Gemini AI)
+apiRouter.post('/ai/generate-soal', async (req: Request, res: Response) => {
+  try {
+    const params = req.body;
+    if (!params.jenjang_sekolah || !params.tingkat_kelas || !params.nama_mapel) {
+      return res.status(400).json({
+        success: false,
+        message: 'Jenjang sekolah, tingkat kelas, dan nama mata pelajaran wajib diisi!',
+      });
+    }
+
+    const result = await generateSoalAi(params);
+    return res.json({
+      success: true,
+      message: `Berhasil men-generate ${result.items.length} butir soal otomatis (${result.source})`,
+      data: result,
+    });
+  } catch (err: any) {
+    console.error('[AI Generate Soal Error]', err);
+    return res.status(500).json({
+      success: false,
+      message: err?.message || 'Terjadi kesalahan saat memproses pembuatan soal dengan AI',
+    });
   }
 });
 

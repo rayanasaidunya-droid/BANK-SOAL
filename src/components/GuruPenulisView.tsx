@@ -11,6 +11,7 @@ import { apiService } from '../services/api';
 import { fallbackStore } from '../data/fallbackStore';
 import { MathRenderer } from './MathRenderer';
 import { TpManagementModal } from './TpManagementModal';
+import { AiQuestionGeneratorModal } from './AiQuestionGeneratorModal';
 import {
   Plus,
   Edit3,
@@ -51,6 +52,7 @@ export const GuruPenulisView: React.FC = () => {
 
   // TP Management Modal State
   const [isTpModalOpen, setIsTpModalOpen] = useState(false);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [selectedMapelForTp, setSelectedMapelForTp] = useState<string | undefined>(undefined);
   const [previewSoalModal, setPreviewSoalModal] = useState<BankSoalButir | null>(null);
 
@@ -316,6 +318,15 @@ export const GuruPenulisView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            onClick={() => setIsAiModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-3 bg-linear-to-r from-amber-500 via-amber-600 to-amber-500 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-xs font-black shadow-md shadow-amber-200 transition-all cursor-pointer"
+            title="Generate Soal Otomatis Berbasis Gemini Flash AI"
+          >
+            <Sparkles className="w-4 h-4 text-amber-200 animate-pulse" />
+            <span>✨ Buat Soal AI</span>
+          </button>
+
           <button
             onClick={() => {
               setSelectedMapelForTp(undefined);
@@ -1372,6 +1383,18 @@ export const GuruPenulisView: React.FC = () => {
         onTpUpdated={async () => {
           const mapels = await apiService.getMapel();
           setMapelList(mapels);
+        }}
+      />
+
+      {/* AI Automatic Question Generator Modal */}
+      <AiQuestionGeneratorModal
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+        initialJenjang={(filterJenjang as any) || 'SD'}
+        initialMapelId={filterMapel || undefined}
+        onSoalSaved={async () => {
+          await loadData(true);
+          setSuccessMsg('Soal hasil AI berhasil disimpan ke Bank Soal!');
         }}
       />
     </div>

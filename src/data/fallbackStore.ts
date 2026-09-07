@@ -335,6 +335,104 @@ export const fallbackStore = {
     return newItem;
   },
 
+  saveBatchBankSoalItems(items: Array<Partial<BankSoalButir>>): BankSoalButir[] {
+    const list = getStorage<BankSoalButir[]>(STORAGE_KEYS.SOAL, INITIAL_BUTIR_SOAL_LIST);
+    const now = new Date().toISOString();
+    const savedList: BankSoalButir[] = [];
+
+    for (let i = 0; i < items.length; i++) {
+      const payload = items[i];
+      const newItem: BankSoalButir = {
+        id: payload.id || `soal-ai-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
+        mapel_id: payload.mapel_id || 'mapel-ipas-sd-4',
+        jenjang_sekolah: payload.jenjang_sekolah || 'SD',
+        tingkat_kelas: payload.tingkat_kelas || 'Kelas 4 SD',
+        jenis_soal: payload.jenis_soal || 'PILIHAN_GANDA',
+        level_kognitif: payload.level_kognitif || 'L2',
+        kode_tp: payload.kode_tp,
+        tujuan_pembelajaran: payload.tujuan_pembelajaran,
+        lingkup_materi: payload.lingkup_materi,
+        indikator_soal: payload.indikator_soal,
+        capaian_pembelajaran: payload.capaian_pembelajaran || '',
+        stimulus_konten: payload.stimulus_konten || '',
+        stimulus_gambar_url: payload.stimulus_gambar_url,
+        pertanyaan_teks: payload.pertanyaan_teks || '',
+        opsi_jawaban_json: payload.opsi_jawaban_json || [],
+        kunci_jawaban_terenkripsi: payload.kunci_jawaban_terenkripsi || 'opt-1',
+        bobot_nilai: payload.bobot_nilai || (payload.jenis_soal === 'ESAI_URAIAN' ? 8 : 2),
+        rubrik_penilaian_esai: payload.rubrik_penilaian_esai,
+        status_validasi: 'TERVALIDASI',
+        penulis_guru_id: payload.penulis_guru_id || 'guru-ai',
+        nama_penulis: payload.nama_penulis || 'AI Generator & Guru Penulis',
+        created_at: now,
+        updated_at: now,
+      };
+      list.unshift(newItem);
+      savedList.push(newItem);
+    }
+
+    setStorage(STORAGE_KEYS.SOAL, list);
+    return savedList;
+  },
+
+  generateSoalAi(params: any): { source: string; items: any[] } {
+    const count = Math.min(Math.max(params.jumlah_soal || 3, 1), 5);
+    const jenjang = params.jenjang_sekolah || 'SD';
+    const materi = params.lingkup_materi || 'Materi Inti Kurikulum Merdeka';
+    const items: any[] = [];
+
+    for (let i = 0; i < count; i++) {
+      const jenis = params.jenis_soal === 'CAMPURAN' 
+        ? (i % 2 === 0 ? 'PILIHAN_GANDA' : (i === 1 ? 'PG_KOMPLEKS' : 'ESAI_URAIAN'))
+        : params.jenis_soal || 'PILIHAN_GANDA';
+      const level = params.level_kognitif === 'CAMPURAN'
+        ? (i === 0 ? 'L1' : (i === 1 ? 'L2' : 'L3'))
+        : params.level_kognitif || 'L2';
+
+      let options = [
+        { id: 'opt-1', label: 'A', teks: `Pilihan jawaban pertama berkaitan dengan ${materi}` },
+        { id: 'opt-2', label: 'B', teks: `Pilihan jawaban kedua yang paling tepat dan analitis sesuai kaidah ${materi}` },
+        { id: 'opt-3', label: 'C', teks: `Pilihan jawaban ketiga sebagai distraktor logis` },
+        { id: 'opt-4', label: 'D', teks: `Pilihan jawaban keempat` },
+      ];
+      if (jenjang !== 'SD') {
+        options.push({ id: 'opt-5', label: 'E', teks: `Pilihan alternatif kelima` });
+      }
+
+      if (jenis === 'ESAI_URAIAN' || jenis === 'ISIAN_SINGKAT') {
+        options = [];
+      }
+
+      const isComplex = jenis === 'PG_KOMPLEKS';
+      const answerKey = isComplex ? ['opt-1', 'opt-2'] : (jenis === 'ESAI_URAIAN' ? 'Penjelasan konsep secara analitis.' : 'opt-2');
+
+      items.push({
+        id: `ai-item-${Date.now()}-${i + 1}`,
+        pertanyaan_teks: jenis === 'ESAI_URAIAN'
+          ? `Jelaskan secara komprehensif faktor-faktor yang mempengaruhi keberhasilan proses ${materi}, serta uraikan implikasinya dalam kehidupan sehari-hari!`
+          : `Berdasarkan kajian kontekstual mengenai ${materi}, manakah kesimpulan yang paling tepat dalam menganalisis fenomena tersebut?`,
+        stimulus_konten: `Dalam pembelajaran ${params.nama_mapel} (${jenjang}), materi mengenai "${materi}" memegang peranan krusial untuk melatih daya nalar kritis siswa melalui pengamatan fenomena autentik di lingkungan sekitar.`,
+        jenis_soal: jenis,
+        level_kognitif: level,
+        capaian_pembelajaran: params.capaian_pembelajaran || `Menguasai konsep dan penerapan ${materi}.`,
+        tujuan_pembelajaran: params.tujuan_pembelajaran || `Menganalisis dan mengevaluasi kasus berbasis ${materi}.`,
+        kode_tp: params.kode_tp || `TP-${String(i + 1).padStart(2, '0')}`,
+        lingkup_materi: materi,
+        indikator_soal: `Disajikan stimulus kontekstual, peserta didik mampu menyelesaikan persoalan terkait ${materi}.`,
+        opsi_jawaban_json: options,
+        kunci_jawaban_terenkripsi: answerKey,
+        bobot_nilai: jenis === 'ESAI_URAIAN' ? 8 : (isComplex ? 4 : 2),
+        rubrik_penilaian_esai: jenis === 'ESAI_URAIAN' ? 'Skor 8: Jawaban terstruktur, argumentasi ilmiah tepat, disertai contoh konkret.' : undefined,
+        pembahasan: `Kunci jawaban didasarkan pada konsep esensial ${materi} di mana opsi terbukti paling relevan secara analitis.`,
+      });
+    }
+
+    return {
+      source: 'CURRICULUM_CLIENT_FALLBACK',
+      items,
+    };
+  },
+
   validateBankSoalItem(id: string, status: string, catatan_revisi?: string, validator_nama?: string): BankSoalButir {
     const list = getStorage<BankSoalButir[]>(STORAGE_KEYS.SOAL, INITIAL_BUTIR_SOAL_LIST);
     const idx = list.findIndex((i) => i.id === id);

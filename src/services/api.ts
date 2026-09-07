@@ -208,6 +208,65 @@ export const apiService = {
     }
   },
 
+  async saveBatchBankSoalItems(payload: {
+    items: Array<Partial<BankSoalButir>>;
+    mapel_id?: string;
+    jenjang_sekolah?: string;
+    tingkat_kelas?: string;
+    penulis_guru_id?: string;
+    nama_penulis?: string;
+  }): Promise<{ message: string; data: BankSoalButir[] }> {
+    try {
+      return await fetchJson(`${BASE_URL}/bank-soal/batch-items`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+    } catch (err) {
+      console.warn('Using client fallback for saveBatchBankSoalItems:', err);
+      const saved = fallbackStore.saveBatchBankSoalItems(payload.items);
+      return { message: `Berhasil menyimpan ${saved.length} butir soal (Mode Lokal)`, data: saved };
+    }
+  },
+
+  async generateSoalAi(params: {
+    jenjang_sekolah: string;
+    tingkat_kelas: string;
+    mapel_id?: string;
+    nama_mapel: string;
+    lingkup_materi: string;
+    capaian_pembelajaran?: string;
+    tujuan_pembelajaran?: string;
+    kode_tp?: string;
+    jenis_soal: string;
+    level_kognitif: string;
+    jumlah_soal: number;
+    sertakan_stimulus?: boolean;
+    sertakan_rumus_katex?: boolean;
+    tingkat_kesulitan?: string;
+    catatan_khusus?: string;
+  }): Promise<{
+    message: string;
+    data: {
+      source: string;
+      model?: string;
+      items: any[];
+    };
+  }> {
+    try {
+      return await fetchJson(`${BASE_URL}/ai/generate-soal`, {
+        method: 'POST',
+        body: JSON.stringify(params),
+      });
+    } catch (err) {
+      console.warn('Using client fallback for generateSoalAi:', err);
+      const result = fallbackStore.generateSoalAi(params);
+      return {
+        message: 'Berhasil membuat soal otomatis (Mode Cadangan)',
+        data: result,
+      };
+    }
+  },
+
   async validateBankSoalItem(
     id: string,
     status: 'TERVALIDASI' | 'PERLU_REVISI' | 'DRAFT',

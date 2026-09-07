@@ -10,6 +10,7 @@ import {
   FileText,
   School,
   Target,
+  Sparkles,
 } from 'lucide-react';
 
 interface HeaderNavProps {
@@ -18,6 +19,7 @@ interface HeaderNavProps {
   onOpenAuditLogs: () => void;
   onResetSeed: () => void;
   onOpenTpManager?: () => void;
+  onOpenAiGenerator?: () => void;
 }
 
 export const HeaderNav: React.FC<HeaderNavProps> = ({
@@ -26,6 +28,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
   onOpenAuditLogs,
   onResetSeed,
   onOpenTpManager,
+  onOpenAiGenerator,
 }) => {
   const roles: Array<{ id: UserRole; label: string; icon: React.ReactNode; desc: string }> = [
     {
@@ -81,6 +84,15 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
 
             {/* Quick Actions for Mobile */}
             <div className="flex items-center gap-1.5 md:hidden">
+              {onOpenAiGenerator && (
+                <button
+                  onClick={onOpenAiGenerator}
+                  title="Buat Soal Otomatis Berbasis AI"
+                  className="p-2 text-amber-900 bg-amber-100 hover:bg-amber-200 rounded-xl border border-amber-300 font-bold"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-600" />
+                </button>
+              )}
               {onOpenTpManager && (
                 <button
                   onClick={onOpenTpManager}
@@ -130,6 +142,16 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
 
           {/* Desktop Utilities */}
           <div className="hidden md:flex items-center gap-2">
+            {onOpenAiGenerator && (
+              <button
+                onClick={onOpenAiGenerator}
+                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-black text-amber-950 bg-linear-to-r from-amber-100 via-amber-200 to-amber-100 hover:from-amber-200 hover:to-amber-300 border border-amber-300/90 rounded-xl transition shadow-xs cursor-pointer"
+                title="Buat Soal Otomatis Berbasis Gemini AI & Standar Kurikulum"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
+                <span>Buat Soal AI</span>
+              </button>
+            )}
             {onOpenTpManager && (
               <button
                 onClick={onOpenTpManager}

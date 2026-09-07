@@ -75,10 +75,10 @@ export const KoordinatorView: React.FC<KoordinatorViewProps> = () => {
   // Detail Paket Modal
   const [detailPaketModal, setDetailPaketModal] = useState<any | null>(null);
 
-  const loadData = async () => {
+  const loadData = async (isManual = false) => {
     try {
       setLoading(true);
-      setErrorMsg(null);
+      if (isManual) setErrorMsg(null);
       const [mapels, pakets] = await Promise.all([
         apiService.getMapel(),
         apiService.getPaketList(),
@@ -91,15 +91,18 @@ export const KoordinatorView: React.FC<KoordinatorViewProps> = () => {
         setGeneratorForm((prev) => ({ ...prev, mapel_id: mapels[0].id }));
       }
 
-      await loadQuestions(selectedMapelId || (mapels[0]?.id ?? ''));
+      await loadQuestions(selectedMapelId || (mapels[0]?.id ?? ''), filterJenjang, isManual);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Gagal memuat data kurikulum');
+      console.warn('Background sync on initial load:', err);
+      if (isManual) {
+        setErrorMsg(err.message || 'Gagal memuat data kurikulum');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const loadQuestions = async (mId?: string, jenjang?: string) => {
+  const loadQuestions = async (mId?: string, jenjang?: string, isManual = false) => {
     try {
       const activeJenjang = jenjang !== undefined ? jenjang : filterJenjang;
       const items = await apiService.getBankSoal({
@@ -109,7 +112,10 @@ export const KoordinatorView: React.FC<KoordinatorViewProps> = () => {
       });
       setSoalList(items);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Gagal memuat butir soal');
+      console.warn('Gagal memuat butir soal:', err);
+      if (isManual) {
+        setErrorMsg(err.message || 'Gagal memuat butir soal');
+      }
     }
   };
 
@@ -234,7 +240,7 @@ export const KoordinatorView: React.FC<KoordinatorViewProps> = () => {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => loadData()}
+              onClick={() => loadData(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-900 rounded-xl font-bold cursor-pointer transition text-xs"
             >
               <RefreshCw className="w-3.5 h-3.5" />

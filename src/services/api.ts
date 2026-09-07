@@ -17,7 +17,7 @@ async function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function fetchJson<T>(url: string, options?: RequestInit, maxRetries = 2): Promise<T> {
+async function fetchJson<T>(url: string, options?: RequestInit, maxRetries = 3): Promise<T> {
   let lastError: any = null;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -30,31 +30,27 @@ async function fetchJson<T>(url: string, options?: RequestInit, maxRetries = 2):
         ...options,
       });
 
-      // Safely read response text first (never call res.json() blindly)
+      // Safely read response text first
       const rawText = await res.text();
 
       // Check HTTP status code
       if (!res.ok) {
-        // If container is warming up (502, 503, 504) and we have retries left, wait and retry
-        if ((res.status >= 502 && res.status <= 504) && attempt < maxRetries) {
-          await sleep(500 * (attempt + 1));
+        // If server is initializing/reloading (404, 502, 503, 504), retry smoothly
+        if ((res.status === 404 || (res.status >= 502 && res.status <= 504)) && attempt < maxRetries) {
+          await sleep(400 * (attempt + 1));
           continue;
         }
 
         // Try to parse structured JSON error response if provided by backend
-        let errorMessage = `Permintaan gagal (HTTP ${res.status})`;
+        let errorMessage = `Permintaan gagal (${res.status})`;
         try {
           const errObj = JSON.parse(rawText);
           if (errObj && typeof errObj.message === 'string') {
             errorMessage = errObj.message;
           }
         } catch {
-          // If response is HTML or Cloud Run error message ("The page cannot be displayed...")
-          if (rawText.toLowerCase().includes('the page') || rawText.includes('<!DOCTYPE') || rawText.includes('<html')) {
-            errorMessage = `Layanan server sedang memulai (Cold Start: HTTP ${res.status}). Silakan coba beberapa detik lagi.`;
-          } else if (rawText.trim()) {
-            errorMessage = rawText.slice(0, 150);
-          }
+          // If response is not JSON (e.g. proxy HTML during boot)
+          errorMessage = 'Server sedang memproses data...';
         }
 
         const error: any = new Error(errorMessage);
@@ -66,13 +62,13 @@ async function fetchJson<T>(url: string, options?: RequestInit, maxRetries = 2):
       let json: any;
       try {
         json = JSON.parse(rawText);
-      } catch (parseErr) {
-        // Server returned 200 OK but content was HTML (e.g. Vite SPA fallback for unmatched URL)
+      } catch {
+        // If status was 200 OK but content wasn't JSON yet, retry
         if (attempt < maxRetries) {
-          await sleep(500 * (attempt + 1));
+          await sleep(400 * (attempt + 1));
           continue;
         }
-        throw new Error('Respons dari server tidak valid (bukan JSON). Silakan muat ulang halaman.');
+        throw new Error('Gagal memuat data dari server');
       }
 
       if (json && json.success === false) {
@@ -85,9 +81,8 @@ async function fetchJson<T>(url: string, options?: RequestInit, maxRetries = 2):
       return json as T;
     } catch (err: any) {
       lastError = err;
-      // If it's a network error (e.g. backend server still booting up), retry
-      if (attempt < maxRetries && (!err.status || err.status >= 500)) {
-        await sleep(600 * (attempt + 1));
+      if (attempt < maxRetries && (!err.status || err.status >= 500 || err.status === 404)) {
+        await sleep(500 * (attempt + 1));
         continue;
       }
       throw err;

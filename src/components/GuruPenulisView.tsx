@@ -101,10 +101,10 @@ export const GuruPenulisView: React.FC = () => {
     nama_penulis: 'Dra. Sri Wahyuni, M.Pd.',
   });
 
-  const loadData = async () => {
+  const loadData = async (isManual = false) => {
     try {
       setLoading(true);
-      setErrorMsg(null);
+      if (isManual) setErrorMsg(null);
       const [mapels, bankSoal] = await Promise.all([
         apiService.getMapel(),
         apiService.getBankSoal({
@@ -127,7 +127,10 @@ export const GuruPenulisView: React.FC = () => {
         }));
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Gagal memuat bank soal');
+      console.warn('Background sync on load:', err);
+      if (isManual) {
+        setErrorMsg(err.message || 'Gagal memuat bank soal');
+      }
     } finally {
       setLoading(false);
     }
@@ -266,7 +269,7 @@ export const GuruPenulisView: React.FC = () => {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => loadData()}
+              onClick={() => loadData(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-900 rounded-xl font-bold cursor-pointer transition text-xs"
             >
               <RefreshCw className="w-3.5 h-3.5" />

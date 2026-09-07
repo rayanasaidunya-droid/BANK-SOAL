@@ -31,19 +31,23 @@ export const ProktorView: React.FC = () => {
   const [ruangLab, setRuangLab] = useState('Lab Komputer 01 (Lantai 2)');
   const [durasiJam, setDurasiJam] = useState(2);
 
-  const loadProctorData = async () => {
+  const loadProctorData = async (isManual = false) => {
     try {
-      setLoading(true);
+      if (isManual) setLoading(true);
       const [tok, sess] = await Promise.all([
         apiService.getActiveToken(),
         apiService.getProctorSessions(),
       ]);
       setTokenInfo(tok);
       setSessions(sess);
+      if (isManual) setFeedbackMsg(null);
     } catch (err: any) {
-      setFeedbackMsg({ type: 'error', text: err.message || 'Gagal memuat data proktor' });
+      console.warn('Background sync proctor data:', err);
+      if (isManual) {
+        setFeedbackMsg({ type: 'error', text: err.message || 'Gagal memuat data proktor' });
+      }
     } finally {
-      setLoading(false);
+      if (isManual) setLoading(false);
     }
   };
 
@@ -148,7 +152,7 @@ export const ProktorView: React.FC = () => {
 
         <div className="flex items-center gap-3">
           <button
-            onClick={() => loadProctorData()}
+            onClick={() => loadProctorData(true)}
             className="flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/80 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />

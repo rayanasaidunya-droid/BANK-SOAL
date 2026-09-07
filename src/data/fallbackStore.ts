@@ -626,6 +626,14 @@ export const fallbackStore = {
     const paket = pakets.find((p) => p.id === sesi.paket_ujian_id) || pakets[0];
     return {
       sesi_id: sesi.id,
+      nama_siswa: sesi.nama_siswa,
+      nomor_peserta: sesi.nomor_peserta,
+      kelas: sesi.kelas,
+      kode_varian_paket: sesi.kode_varian_paket,
+      sisa_detik: sesi.sisa_detik,
+      status_pengerjaan: sesi.status_pengerjaan,
+      judul_ujian: paket.judul_ujian,
+      durasi_menit: paket.durasi_menit,
       siswa: {
         id: sesi.siswa_id,
         nomor_peserta: sesi.nomor_peserta,
@@ -638,39 +646,139 @@ export const fallbackStore = {
         kode_varian: sesi.kode_varian_paket,
         durasi_menit: paket.durasi_menit,
       },
-      status_pengerjaan: sesi.status_pengerjaan,
-      sisa_detik: sesi.sisa_detik,
     };
   },
 
   getCbtSoal(sesiId: string): any {
-    const soals = this.getBankSoal({ jenjang_sekolah: 'SD' });
-    const items = (soals.length > 0 ? soals.slice(0, 3) : INITIAL_BUTIR_SOAL_LIST.slice(0, 3)).map((s, idx) => ({
+    const sesiList = getStorage<SesiUjianSiswaCBT[]>(STORAGE_KEYS.SESI, INITIAL_SESSIONS);
+    let sesi = sesiList.find((s) => s.id === sesiId);
+    if (!sesi) {
+      sesi = sesiList[0] || {
+        id: sesiId,
+        paket_ujian_id: 'pkt-ipas-sd-4',
+        kode_varian_paket: 'A' as const,
+        siswa_id: 'siswa-01',
+        nomor_peserta: 'SD-04-001',
+        nama_siswa: 'Peserta Ujian SD',
+        kelas: 'Kelas 4 SD',
+        waktu_mulai: new Date().toISOString(),
+        sisa_detik: 3600,
+        jawaban_siswa_json: {},
+        skor_otomatis_pg: null,
+        skor_esai_manual: null,
+        total_skor_akhir: null,
+        jumlah_pelanggaran_tab: 0,
+        status_pengerjaan: 'SEDANG_MENGERJAKAN',
+        riwayat_pelanggaran: [],
+        terakhir_aktif: new Date().toISOString(),
+      };
+    }
+
+    const pakets = this.getPaketList();
+    const paket = pakets.find((p) => p.id === sesi.paket_ujian_id) || pakets[0] || {
+      judul_ujian: 'Asesmen Sumatif Akhir Semester - IPAS Kelas 4 SD',
+      durasi_menit: 60,
+    };
+
+    let soals = this.getBankSoal({ mapel_id: paket.mapel_id });
+    if (!soals || soals.length === 0) {
+      soals = this.getBankSoal({ jenjang_sekolah: 'SD' });
+    }
+    if (!soals || soals.length === 0) {
+      soals = INITIAL_BUTIR_SOAL_LIST;
+    }
+
+    const items = soals.slice(0, 5).map((s, idx) => ({
       id: s.id,
       nomor_soal: idx + 1,
+      nomor_urut: idx + 1,
       jenis_soal: s.jenis_soal,
+      level_kognitif: s.level_kognitif,
+      capaian_pembelajaran: s.capaian_pembelajaran,
       stimulus_konten: s.stimulus_konten,
       stimulus_gambar_url: s.stimulus_gambar_url,
       pertanyaan_teks: s.pertanyaan_teks,
-      opsi_jawaban_json: s.opsi_jawaban_json,
+      opsi_jawaban_json: (s.opsi_jawaban_json || []).map((opt) => ({
+        id: opt.id,
+        label: opt.label,
+        teks: opt.teks,
+      })),
       bobot_nilai: s.bobot_nilai,
       ragu_ragu: false,
       jawaban_tersimpan: null,
     }));
+
+    const safeJawabanSiswa = sesi.jawaban_siswa_json || {};
+
     return {
-      sesi_id: sesiId,
-      nomor_peserta: 'SD-04-001',
-      nama_siswa: 'Peserta Ujian SD',
-      judul_ujian: 'Asesmen Sumatif Akhir Semester - IPAS Kelas 4 SD',
-      durasi_menit: 60,
-      sisa_detik: 3600,
-      kode_varian_paket: 'A',
+      sesi: {
+        id: sesi.id,
+        nomor_peserta: sesi.nomor_peserta,
+        nama_siswa: sesi.nama_siswa,
+        kelas: sesi.kelas,
+        sisa_detik: sesi.sisa_detik,
+        jawaban_siswa: safeJawabanSiswa,
+        status_pengerjaan: sesi.status_pengerjaan,
+        jumlah_pelanggaran_tab: sesi.jumlah_pelanggaran_tab || 0,
+      },
+      paket: {
+        judul_ujian: paket.judul_ujian,
+        durasi_menit: paket.durasi_menit,
+        kode_varian: sesi.kode_varian_paket || 'A',
+        total_soal: items.length,
+      },
       daftar_soal: items,
+      // Flat fields for backward compatibility
+      sesi_id: sesi.id,
+      nomor_peserta: sesi.nomor_peserta,
+      nama_siswa: sesi.nama_siswa,
+      judul_ujian: paket.judul_ujian,
+      durasi_menit: paket.durasi_menit,
+      sisa_detik: sesi.sisa_detik,
+      kode_varian_paket: sesi.kode_varian_paket || 'A',
+      jawaban_siswa: safeJawabanSiswa,
+      status_pengerjaan: sesi.status_pengerjaan,
+      jumlah_pelanggaran_tab: sesi.jumlah_pelanggaran_tab || 0,
     };
   },
 
   autosaveCbt(sesiId: string, payload: any): any {
-    return { success: true, timestamp: new Date().toISOString() };
+    const sesiList = getStorage<SesiUjianSiswaCBT[]>(STORAGE_KEYS.SESI, INITIAL_SESSIONS);
+    const idx = sesiList.findIndex((s) => s.id === sesiId);
+    let violations = 0;
+    if (idx !== -1) {
+      if (payload.jawaban_siswa && typeof payload.jawaban_siswa === 'object') {
+        sesiList[idx].jawaban_siswa_json = {
+          ...(sesiList[idx].jawaban_siswa_json || {}),
+          ...payload.jawaban_siswa,
+        };
+      }
+      if (typeof payload.sisa_detik === 'number') {
+        sesiList[idx].sisa_detik = payload.sisa_detik;
+      }
+      if (payload.pelanggaran) {
+        sesiList[idx].jumlah_pelanggaran_tab = (sesiList[idx].jumlah_pelanggaran_tab || 0) + 1;
+        sesiList[idx].riwayat_pelanggaran = [
+          ...(sesiList[idx].riwayat_pelanggaran || []),
+          {
+            timestamp: new Date().toISOString(),
+            jenis: payload.pelanggaran.jenis,
+            detail: payload.pelanggaran.detail,
+          },
+        ];
+        if (sesiList[idx].jumlah_pelanggaran_tab >= 3) {
+          sesiList[idx].status_pengerjaan = 'TERKUNCI_PELANGGARAN';
+        }
+      }
+      violations = sesiList[idx].jumlah_pelanggaran_tab || 0;
+      setStorage(STORAGE_KEYS.SESI, sesiList);
+    }
+    return {
+      success: true,
+      jumlah_pelanggaran: violations,
+      locked: violations >= 3,
+      timestamp: new Date().toISOString(),
+    };
   },
 
   submitFinalCbt(sesiId: string): any {

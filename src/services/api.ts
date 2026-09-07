@@ -365,6 +365,18 @@ export const apiService = {
       status_pengerjaan: string;
       judul_ujian: string;
       durasi_menit: number;
+      siswa?: {
+        id?: string;
+        nomor_peserta?: string;
+        nama_siswa?: string;
+        kelas?: string;
+      };
+      ujian?: {
+        judul_ujian?: string;
+        kode_ujian?: string;
+        kode_varian?: string;
+        durasi_menit?: number;
+      };
     };
   }> {
     try {
@@ -383,10 +395,30 @@ export const apiService = {
     sesi: any;
     paket: { judul_ujian: string; durasi_menit: number; kode_varian: string; total_soal: number };
     daftar_soal: any[];
+    jawaban_siswa?: any;
+    jumlah_pelanggaran_tab?: number;
+    status_pengerjaan?: string;
   }> {
     try {
       const res = await fetchJson<{ data: any }>(`${BASE_URL}/cbt/sesi/${sesiId}/soal`);
-      if (res && res.data) return res.data;
+      if (res && res.data) {
+        const d = res.data;
+        if (!d.sesi) {
+          d.sesi = {
+            id: d.sesi_id || sesiId,
+            nomor_peserta: d.nomor_peserta || '',
+            nama_siswa: d.nama_siswa || '',
+            kelas: d.kelas || '',
+            sisa_detik: d.sisa_detik || 3600,
+            jawaban_siswa: d.jawaban_siswa || {},
+            status_pengerjaan: d.status_pengerjaan || 'SEDANG_MENGERJAKAN',
+            jumlah_pelanggaran_tab: d.jumlah_pelanggaran_tab || 0,
+          };
+        } else if (!d.sesi.jawaban_siswa) {
+          d.sesi.jawaban_siswa = d.jawaban_siswa || {};
+        }
+        return d;
+      }
       return fallbackStore.getCbtSoal(sesiId);
     } catch (err) {
       console.warn('Using client fallback for getCbtSoal:', err);

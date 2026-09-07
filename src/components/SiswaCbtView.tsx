@@ -89,25 +89,36 @@ export const SiswaCbtView: React.FC = () => {
       setLoginError(null);
 
       const res = await apiService.loginCbt(nomorPeserta, tokenUjian);
-      setSesiId(res.data.sesi_id);
+      const sesiData = res?.data;
+      if (!sesiData || !sesiData.sesi_id) {
+        throw new Error('Sesi pengerjaan tidak dapat diinisialisasi dari server');
+      }
+
+      setSesiId(sesiData.sesi_id);
       setStudentInfo({
-        nama_siswa: res.data.nama_siswa,
-        nomor_peserta: res.data.nomor_peserta,
-        kelas: res.data.kelas,
-        kode_varian_paket: res.data.kode_varian_paket,
-        judul_ujian: res.data.judul_ujian,
+        nama_siswa: sesiData.nama_siswa || sesiData.siswa?.nama_siswa || 'Peserta Ujian',
+        nomor_peserta: sesiData.nomor_peserta || sesiData.siswa?.nomor_peserta || nomorPeserta,
+        kelas: sesiData.kelas || sesiData.siswa?.kelas || 'Kelas 4 SD',
+        kode_varian_paket: sesiData.kode_varian_paket || sesiData.ujian?.kode_varian || 'A',
+        judul_ujian: sesiData.judul_ujian || sesiData.ujian?.judul_ujian || 'Asesmen CBT',
       });
-      setRemainingSeconds(res.data.sisa_detik);
+      setRemainingSeconds(typeof sesiData.sisa_detik === 'number' ? sesiData.sisa_detik : 3600);
 
       // Load safe questions (BL-EXAM-001 ZERO-LEAKAGE)
-      const cbtData = await apiService.getCbtSoal(res.data.sesi_id);
-      setSoalList(cbtData.daftar_soal);
-      setAnswers(cbtData.sesi.jawaban_siswa || {});
-      setViolationCount(cbtData.sesi.jumlah_pelanggaran_tab || 0);
+      const cbtData = await apiService.getCbtSoal(sesiData.sesi_id);
+      const safeDaftarSoal = cbtData?.daftar_soal || [];
+      const safeSesi = cbtData?.sesi || {};
+      const safeJawaban = safeSesi.jawaban_siswa || cbtData?.jawaban_siswa || {};
+      const safeViolations = safeSesi.jumlah_pelanggaran_tab ?? cbtData?.jumlah_pelanggaran_tab ?? 0;
 
-      if (cbtData.sesi.status_pengerjaan === 'TERKUNCI_PELANGGARAN') {
+      setSoalList(safeDaftarSoal);
+      setAnswers(safeJawaban);
+      setViolationCount(safeViolations);
+
+      const currentStatus = safeSesi.status_pengerjaan || sesiData.status_pengerjaan;
+      if (currentStatus === 'TERKUNCI_PELANGGARAN') {
         setPhase('LOCKED');
-      } else if (cbtData.sesi.status_pengerjaan === 'SELESAI') {
+      } else if (currentStatus === 'SELESAI') {
         setPhase('RESULT');
       } else {
         setPhase('EXAM');
@@ -438,18 +449,20 @@ export const SiswaCbtView: React.FC = () => {
           </span>
           <div className="grid grid-cols-2 gap-2.5">
             <button
-              onClick={() => handleQuickFill('26-001-X-A')}
+              type="button"
+              onClick={() => handleQuickFill('SD-04-001')}
               className="p-3 text-left bg-slate-50 hover:bg-indigo-50/50 hover:border-indigo-300 rounded-2xl border border-slate-200 text-[11px] transition"
             >
               <div className="font-bold text-slate-800">Aditya Pratama</div>
-              <div className="text-slate-500 font-mono text-[10px]">26-001-X-A (Varian A)</div>
+              <div className="text-slate-500 font-mono text-[10px]">SD-04-001 (Varian A)</div>
             </button>
             <button
-              onClick={() => handleQuickFill('26-002-X-A')}
+              type="button"
+              onClick={() => handleQuickFill('SD-04-002')}
               className="p-3 text-left bg-slate-50 hover:bg-indigo-50/50 hover:border-indigo-300 rounded-2xl border border-slate-200 text-[11px] transition"
             >
-              <div className="font-bold text-slate-800">Clarissa Putri</div>
-              <div className="text-slate-500 font-mono text-[10px]">26-002-X-A (Varian B)</div>
+              <div className="font-bold text-slate-800">Clarissa Maharani</div>
+              <div className="text-slate-500 font-mono text-[10px]">SD-04-002 (Varian B)</div>
             </button>
           </div>
           {activeTokenHint && (
@@ -490,13 +503,19 @@ export const SiswaCbtView: React.FC = () => {
           onClick={() => {
             // Re-check status if proctor has unlocked it
             if (sesiId) {
-              apiService.getCbtSoal(sesiId).then((data) => {
-                if (data.sesi.status_pengerjaan === 'SEDANG_MENGERJAKAN') {
-                  setPhase('EXAM');
-                } else {
-                  alert('Sesi masih terkunci oleh sistem. Silakan minta pengawas membuka kunci pada dasbor proktor.');
-                }
-              });
+              apiService
+                .getCbtSoal(sesiId)
+                .then((data) => {
+                  const status = data?.sesi?.status_pengerjaan || (data as any)?.status_pengerjaan;
+                  if (status === 'SEDANG_MENGERJAKAN') {
+                    setPhase('EXAM');
+                  } else {
+                    alert('Sesi masih terkunci oleh sistem. Silakan minta pengawas membuka kunci pada dasbor proktor.');
+                  }
+                })
+                .catch(() => {
+                  alert('Gagal memeriksa status sesi. Silakan coba lagi.');
+                });
             }
           }}
           className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-xs shadow-md transition"

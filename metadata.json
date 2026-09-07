@@ -1,0 +1,6 @@
+{
+  "name": "Bank Soal & Generator Ujian Sekolah",
+  "description": "Platform Bank Soal, Generator Paket Ujian Seimbang (CBT & Cetak 2-Kolom Dinas), serta Engine Asesmen CBT Anti-Cheat dengan Kunci Terenkripsi Zero-Leakage.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

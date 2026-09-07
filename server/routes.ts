@@ -796,8 +796,8 @@ apiRouter.post('/cbt/proktor/release-token', (req: Request, res: Response) => {
   });
 });
 
-// GET /api/v1/cbt/proktor/token (Get current active token)
-apiRouter.get('/cbt/proktor/token', (req: Request, res: Response) => {
+// GET /api/v1/cbt/proktor/token & alias /cbt/token/active
+apiRouter.get(['/cbt/proktor/token', '/cbt/token/active'], (req: Request, res: Response) => {
   const active = db.proctorTokens.find((t) => t.is_active);
   res.json({ success: true, data: active || null });
 });

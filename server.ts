@@ -19,6 +19,26 @@ async function startServer() {
     res.json({ status: 'ok', service: 'bank-soal-cbt-engine', timestamp: new Date().toISOString() });
   });
 
+  // Strict API 404 Handler - Never return HTML for API requests
+  app.all('/api/*', (req, res) => {
+    res.status(404).json({
+      success: false,
+      message: `API endpoint tidak ditemukan: ${req.method} ${req.originalUrl}`,
+    });
+  });
+
+  // API Error Handler - Always return JSON for API requests
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error('[API Error Handler]', err);
+    if (req.originalUrl?.startsWith('/api')) {
+      return res.status(err.status || 500).json({
+        success: false,
+        message: err.message || 'Terjadi kesalahan internal pada server',
+      });
+    }
+    next(err);
+  });
+
   // Vite middleware for development / static serving in production
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({

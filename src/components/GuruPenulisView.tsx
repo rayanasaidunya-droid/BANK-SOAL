@@ -27,6 +27,7 @@ import {
   GraduationCap,
   Target,
   Sparkles,
+  RefreshCw,
 } from 'lucide-react';
 
 export const GuruPenulisView: React.FC = () => {
@@ -263,9 +264,18 @@ export const GuruPenulisView: React.FC = () => {
             <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
             <span>{errorMsg}</span>
           </div>
-          <button onClick={() => setErrorMsg(null)} className="text-red-600 font-bold ml-3">
-            ✕
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => loadData()}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-900 rounded-xl font-bold cursor-pointer transition text-xs"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Muat Ulang</span>
+            </button>
+            <button onClick={() => setErrorMsg(null)} className="text-red-600 font-bold ml-1 cursor-pointer">
+              ✕
+            </button>
+          </div>
         </div>
       )}
 

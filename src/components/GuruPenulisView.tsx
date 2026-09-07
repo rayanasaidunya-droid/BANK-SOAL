@@ -8,6 +8,7 @@ import {
   JenjangSekolah,
 } from '../types';
 import { apiService } from '../services/api';
+import { fallbackStore } from '../data/fallbackStore';
 import { MathRenderer } from './MathRenderer';
 import { TpManagementModal } from './TpManagementModal';
 import {
@@ -31,8 +32,8 @@ import {
 } from 'lucide-react';
 
 export const GuruPenulisView: React.FC = () => {
-  const [mapelList, setMapelList] = useState<MataPelajaranKurikulum[]>([]);
-  const [items, setItems] = useState<BankSoalButir[]>([]);
+  const [mapelList, setMapelList] = useState<MataPelajaranKurikulum[]>(() => fallbackStore.getMapel());
+  const [items, setItems] = useState<BankSoalButir[]>(() => fallbackStore.getBankSoal());
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -73,32 +74,37 @@ export const GuruPenulisView: React.FC = () => {
     rubrik_penilaian_esai: string;
     penulis_guru_id: string;
     nama_penulis: string;
-  }>({
-    mapel_id: '',
-    jenjang_sekolah: 'SD',
-    tingkat_kelas: 'Kelas 4',
-    kode_tp: '',
-    tujuan_pembelajaran: '',
-    lingkup_materi: '',
-    indikator_soal: '',
-    jenis_soal: 'PILIHAN_GANDA',
-    level_kognitif: 'L2',
-    capaian_pembelajaran: '',
-    stimulus_konten: '',
-    stimulus_gambar_url: '',
-    pertanyaan_teks: '',
-    opsi_jawaban_json: [
-      { id: 'opt-1', label: 'A', teks: '' },
-      { id: 'opt-2', label: 'B', teks: '' },
-      { id: 'opt-3', label: 'C', teks: '' },
-      { id: 'opt-4', label: 'D', teks: '' },
-      { id: 'opt-5', label: 'E', teks: '' },
-    ],
-    kunci_jawaban_terenkripsi: 'opt-1',
-    bobot_nilai: 2.5,
-    rubrik_penilaian_esai: '',
-    penulis_guru_id: 'guru-1',
-    nama_penulis: 'Dra. Sri Wahyuni, M.Pd.',
+  }>(() => {
+    const mapels = fallbackStore.getMapel();
+    const defaultMapel = mapels.find((m) => m.jenjang_sekolah === 'SD') || mapels[0];
+    const firstTp = defaultMapel?.daftar_tp?.[0];
+    return {
+      mapel_id: defaultMapel?.id || 'mapel-sd-ipa-4',
+      jenjang_sekolah: (defaultMapel?.jenjang_sekolah || 'SD') as JenjangSekolah,
+      tingkat_kelas: defaultMapel?.tingkat_kelas || 'Kelas 4',
+      kode_tp: firstTp?.kode_tp || '',
+      tujuan_pembelajaran: firstTp?.deskripsi || '',
+      lingkup_materi: firstTp?.lingkup_materi || '',
+      indikator_soal: firstTp?.indikator_asesmen || '',
+      jenis_soal: 'PILIHAN_GANDA',
+      level_kognitif: 'L2',
+      capaian_pembelajaran: firstTp?.deskripsi || '',
+      stimulus_konten: '',
+      stimulus_gambar_url: '',
+      pertanyaan_teks: '',
+      opsi_jawaban_json: [
+        { id: 'opt-1', label: 'A', teks: '' },
+        { id: 'opt-2', label: 'B', teks: '' },
+        { id: 'opt-3', label: 'C', teks: '' },
+        { id: 'opt-4', label: 'D', teks: '' },
+        { id: 'opt-5', label: 'E', teks: '' },
+      ],
+      kunci_jawaban_terenkripsi: 'opt-1',
+      bobot_nilai: 2.5,
+      rubrik_penilaian_esai: '',
+      penulis_guru_id: 'guru-1',
+      nama_penulis: 'Dra. Sri Wahyuni, M.Pd.',
+    };
   });
 
   const loadData = async (isManual = false) => {
@@ -734,13 +740,15 @@ export const GuruPenulisView: React.FC = () => {
                       className="w-full p-2.5 bg-white border border-slate-300 rounded-xl text-xs font-semibold"
                       required
                     >
-                      {mapelList
-                        .filter((m) => m.jenjang_sekolah === formData.jenjang_sekolah)
-                        .map((m) => (
+                      {(() => {
+                        const matching = mapelList.filter((m) => m.jenjang_sekolah === formData.jenjang_sekolah);
+                        const listToRender = matching.length > 0 ? matching : mapelList;
+                        return listToRender.map((m) => (
                           <option key={m.id} value={m.id}>
-                            {m.nama_mapel} ({m.tingkat_kelas})
+                            [{m.jenjang_sekolah}] {m.nama_mapel} ({m.tingkat_kelas})
                           </option>
-                        ))}
+                        ));
+                      })()}
                     </select>
                   </div>
 

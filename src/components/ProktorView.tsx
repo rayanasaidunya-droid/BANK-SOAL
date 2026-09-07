@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ProctorTokenInfo, SesiUjianSiswaCBT } from '../types';
 import { apiService } from '../services/api';
+import { fallbackStore } from '../data/fallbackStore';
 import {
   Users,
   KeyRound,
@@ -19,8 +20,8 @@ import {
 } from 'lucide-react';
 
 export const ProktorView: React.FC = () => {
-  const [tokenInfo, setTokenInfo] = useState<ProctorTokenInfo | null>(null);
-  const [sessions, setSessions] = useState<any[]>([]);
+  const [tokenInfo, setTokenInfo] = useState<ProctorTokenInfo | null>(() => fallbackStore.getActiveToken());
+  const [sessions, setSessions] = useState<any[]>(() => fallbackStore.getProctorSessions());
   const [loading, setLoading] = useState(false);
   const [copiedToken, setCopiedToken] = useState(false);
   const [selectedViolationSesi, setSelectedViolationSesi] = useState<any | null>(null);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MataPelajaranKurikulum, TujuanPembelajaranInfo } from '../types';
 import { apiService } from '../services/api';
+import { fallbackStore } from '../data/fallbackStore';
 import {
   BookOpen,
   Plus,
@@ -33,8 +34,8 @@ export const TpManagementModal: React.FC<TpManagementModalProps> = ({
   initialMapelId,
   onTpUpdated,
 }) => {
-  const [mapelList, setMapelList] = useState<MataPelajaranKurikulum[]>([]);
-  const [selectedMapelId, setSelectedMapelId] = useState<string>('');
+  const [mapelList, setMapelList] = useState<MataPelajaranKurikulum[]>(() => fallbackStore.getMapel());
+  const [selectedMapelId, setSelectedMapelId] = useState<string>(() => initialMapelId || fallbackStore.getMapel()[0]?.id || '');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -60,17 +61,19 @@ export const TpManagementModal: React.FC<TpManagementModalProps> = ({
       setLoading(true);
       setErrorMsg(null);
       const data = await apiService.getMapel();
-      // Filter specifically SD subjects
-      const sdMapels = data.filter((m) => m.jenjang_sekolah === 'SD');
-      setMapelList(sdMapels.length > 0 ? sdMapels : data);
+      const allMapels = data && data.length > 0 ? data : fallbackStore.getMapel();
+      setMapelList(allMapels);
 
       if (initialMapelId) {
         setSelectedMapelId(initialMapelId);
-      } else if (sdMapels.length > 0 && !selectedMapelId) {
-        setSelectedMapelId(sdMapels[0].id);
+      } else if (allMapels.length > 0 && !selectedMapelId) {
+        setSelectedMapelId(allMapels[0].id);
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Gagal memuat daftar mata pelajaran.');
+      console.warn('Background sync in loadMapels:', err);
+      const allMapels = fallbackStore.getMapel();
+      setMapelList(allMapels);
+      if (initialMapelId) setSelectedMapelId(initialMapelId);
     } finally {
       setLoading(false);
     }

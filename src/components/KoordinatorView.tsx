@@ -8,6 +8,7 @@ import {
   NaskahCetakData,
 } from '../types';
 import { apiService } from '../services/api';
+import { fallbackStore } from '../data/fallbackStore';
 import { MathRenderer } from './MathRenderer';
 import { PrintExamModal } from './PrintExamModal';
 import { TpManagementModal } from './TpManagementModal';
@@ -37,11 +38,11 @@ export const KoordinatorView: React.FC<KoordinatorViewProps> = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Data State
-  const [mapelList, setMapelList] = useState<MataPelajaranKurikulum[]>([]);
-  const [soalList, setSoalList] = useState<BankSoalButir[]>([]);
-  const [paketList, setPaketList] = useState<any[]>([]);
-  const [selectedMapelId, setSelectedMapelId] = useState<string>('');
+  // Data State with immediate fallback initialization (works offline / GitHub Pages)
+  const [mapelList, setMapelList] = useState<MataPelajaranKurikulum[]>(() => fallbackStore.getMapel());
+  const [soalList, setSoalList] = useState<BankSoalButir[]>(() => fallbackStore.getBankSoal());
+  const [paketList, setPaketList] = useState<any[]>(() => fallbackStore.getPaketList());
+  const [selectedMapelId, setSelectedMapelId] = useState<string>(() => fallbackStore.getMapel()[0]?.id || '');
   const [filterJenjang, setFilterJenjang] = useState<string>('ALL');
 
   // Validation State
@@ -50,18 +51,21 @@ export const KoordinatorView: React.FC<KoordinatorViewProps> = () => {
   const [activeRevisionId, setActiveRevisionId] = useState<string | null>(null);
 
   // Generator State (BL-EXAM-004)
-  const [generatorForm, setGeneratorForm] = useState<GeneratePaketPayload>({
-    mapel_id: '',
-    kode_ujian: 'ASAS-IPAS-2026-SD4',
-    judul_ujian: 'Asesmen Sumatif Akhir Semester IPAS Fase B Kelas 4 SD',
-    durasi_menit: 75,
-    total_soal_pg: 3,
-    total_soal_esai: 1,
-    target_l1: 1,
-    target_l2: 2,
-    target_l3: 1,
-    acak_nomor_soal: true,
-    acak_opsi_jawaban: true,
+  const [generatorForm, setGeneratorForm] = useState<GeneratePaketPayload>(() => {
+    const firstMapelId = fallbackStore.getMapel()[0]?.id || '';
+    return {
+      mapel_id: firstMapelId,
+      kode_ujian: 'ASAS-IPAS-2026-SD4',
+      judul_ujian: 'Asesmen Sumatif Akhir Semester IPAS Fase B Kelas 4 SD',
+      durasi_menit: 75,
+      total_soal_pg: 3,
+      total_soal_esai: 1,
+      target_l1: 1,
+      target_l2: 2,
+      target_l3: 1,
+      acak_nomor_soal: true,
+      acak_opsi_jawaban: true,
+    };
   });
 
   // TP Management Modal State
@@ -422,14 +426,17 @@ export const KoordinatorView: React.FC<KoordinatorViewProps> = () => {
                 onChange={(e) => setSelectedMapelId(e.target.value)}
                 className="bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-2.5 py-1.5 text-xs font-medium focus:ring-1 focus:ring-indigo-500"
               >
-                {(filterJenjang === 'ALL'
-                  ? mapelList
-                  : mapelList.filter((m) => m.jenjang_sekolah === filterJenjang)
-                ).map((m) => (
-                  <option key={m.id} value={m.id}>
-                    [{m.jenjang_sekolah || 'UMUM'} - Kls {m.tingkat_kelas}] {m.nama_mapel}
-                  </option>
-                ))}
+                {(() => {
+                  const filtered = filterJenjang === 'ALL'
+                    ? mapelList
+                    : mapelList.filter((m) => m.jenjang_sekolah === filterJenjang);
+                  const displayList = filtered.length > 0 ? filtered : mapelList;
+                  return displayList.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      [{m.jenjang_sekolah || 'UMUM'} - Kls {m.tingkat_kelas}] {m.nama_mapel}
+                    </option>
+                  ));
+                })()}
               </select>
 
               <label className="font-semibold text-slate-700 dark:text-slate-300 ml-2">Status:</label>

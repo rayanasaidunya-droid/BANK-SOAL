@@ -52,6 +52,7 @@ export const GuruPenulisView: React.FC = () => {
   // TP Management Modal State
   const [isTpModalOpen, setIsTpModalOpen] = useState(false);
   const [selectedMapelForTp, setSelectedMapelForTp] = useState<string | undefined>(undefined);
+  const [previewSoalModal, setPreviewSoalModal] = useState<BankSoalButir | null>(null);
 
   // Form State with Jenjang and TP support
   const [formData, setFormData] = useState<{
@@ -509,9 +510,9 @@ export const GuruPenulisView: React.FC = () => {
                       </span>
                     )}
                     {/* Mapel Name */}
-                    {item.mapel_nama && (
+                    {((item as any).mapel_nama || mapelList.find((m) => m.id === item.mapel_id)?.nama_mapel) && (
                       <span className="bg-slate-50 text-slate-600 font-bold px-2 py-0.5 rounded border border-slate-200 text-[11px]">
-                        {item.mapel_nama}
+                        {(item as any).mapel_nama || mapelList.find((m) => m.id === item.mapel_id)?.nama_mapel}
                       </span>
                     )}
                     <span className="bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 font-semibold px-2 py-0.5 rounded text-[11px]">
@@ -537,6 +538,15 @@ export const GuruPenulisView: React.FC = () => {
                     >
                       {item.status_validasi.replace('_', ' ')}
                     </span>
+
+                    <button
+                      onClick={() => setPreviewSoalModal(item)}
+                      className="flex items-center gap-1 px-2.5 py-1 text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 rounded font-medium transition cursor-pointer"
+                      title="Lihat Pratinjau Butir Soal"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Lihat</span>
+                    </button>
 
                     <button
                       onClick={() => handleOpenEdit(item)}
@@ -1197,6 +1207,163 @@ export const GuruPenulisView: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Question Detail Preview Modal */}
+      {previewSoalModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-2xl w-full p-6 max-h-[85vh] overflow-y-auto space-y-4 shadow-2xl border border-slate-200 dark:border-slate-700">
+            {/* Header */}
+            <div className="flex justify-between items-start border-b border-slate-200 dark:border-slate-700 pb-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold uppercase bg-indigo-600 text-white">
+                    {previewSoalModal.jenis_soal.replace('_', ' ')}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-purple-50 text-purple-700">
+                    Level {previewSoalModal.level_kognitif}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-700">
+                    Bobot: {previewSoalModal.bobot_nilai} Poin
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded font-bold text-[11px] uppercase ${
+                      previewSoalModal.status_validasi === 'TERVALIDASI'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : previewSoalModal.status_validasi === 'PERLU_REVISI'
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-slate-100 text-slate-800'
+                    }`}
+                  >
+                    {previewSoalModal.status_validasi.replace('_', ' ')}
+                  </span>
+                </div>
+                <h3 className="font-bold text-slate-900 dark:text-white text-base pt-1">
+                  Pratinjau Butir Soal #{previewSoalModal.id.slice(-6)}
+                </h3>
+              </div>
+              <button
+                onClick={() => setPreviewSoalModal(null)}
+                className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* TP & Lingkup Materi */}
+            {(previewSoalModal.kode_tp || previewSoalModal.tujuan_pembelajaran || previewSoalModal.lingkup_materi) && (
+              <div className="p-3 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-900 text-xs space-y-1">
+                <div className="flex items-center gap-2 font-bold text-indigo-900 dark:text-indigo-200">
+                  <Target className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Tujuan Pembelajaran:</span>
+                  {previewSoalModal.kode_tp && (
+                    <span className="bg-indigo-600 text-white px-2 py-0.5 rounded font-mono text-[11px]">
+                      {previewSoalModal.kode_tp}
+                    </span>
+                  )}
+                  {previewSoalModal.lingkup_materi && (
+                    <span className="bg-white dark:bg-slate-800 text-indigo-800 dark:text-indigo-300 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-800 text-[11px]">
+                      {previewSoalModal.lingkup_materi}
+                    </span>
+                  )}
+                </div>
+                {previewSoalModal.tujuan_pembelajaran && (
+                  <p className="text-slate-700 dark:text-slate-300 pl-5 leading-relaxed text-[11px]">
+                    {previewSoalModal.tujuan_pembelajaran}
+                  </p>
+                )}
+                {previewSoalModal.indikator_soal && (
+                  <p className="text-slate-500 dark:text-slate-400 pl-5 text-[11px]">
+                    <strong>Indikator:</strong> {previewSoalModal.indikator_soal}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Stimulus */}
+            {previewSoalModal.stimulus_konten && (
+              <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 text-xs space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Stimulus Soal:
+                </span>
+                <MathRenderer content={previewSoalModal.stimulus_konten} />
+              </div>
+            )}
+
+            {/* Pertanyaan */}
+            <div className="p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 text-xs space-y-2">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                Teks Pertanyaan:
+              </span>
+              <div className="text-slate-900 dark:text-slate-100 font-medium leading-relaxed">
+                <MathRenderer content={previewSoalModal.pertanyaan_teks} />
+              </div>
+            </div>
+
+            {/* Opsi Jawaban */}
+            {previewSoalModal.opsi_jawaban_json && previewSoalModal.opsi_jawaban_json.length > 0 && (
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Pilihan Opsi Jawaban:
+                </span>
+                {previewSoalModal.opsi_jawaban_json.map((opt) => {
+                  const isKey =
+                    typeof previewSoalModal.kunci_jawaban_terenkripsi === 'string'
+                      ? previewSoalModal.kunci_jawaban_terenkripsi === opt.id
+                      : Array.isArray(previewSoalModal.kunci_jawaban_terenkripsi)
+                      ? previewSoalModal.kunci_jawaban_terenkripsi.includes(opt.id)
+                      : false;
+
+                  return (
+                    <div
+                      key={opt.id}
+                      className={`p-2.5 rounded-xl flex items-start gap-2.5 border transition ${
+                        isKey
+                          ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200'
+                          : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      <span
+                        className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
+                          isKey
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        {opt.id}
+                      </span>
+                      <div className="flex-1 text-xs">
+                        <MathRenderer content={opt.teks} />
+                      </div>
+                      {isKey && (
+                        <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/60 rounded">
+                          ✓ Kunci Jawaban
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Rubrik Esai */}
+            {previewSoalModal.rubrik_penilaian_esai && (
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 text-amber-900 dark:text-amber-200 text-xs">
+                <strong>Pedoman Penskoran Esai:</strong> {previewSoalModal.rubrik_penilaian_esai}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex justify-end pt-2 border-t border-slate-200 dark:border-slate-700">
+              <button
+                onClick={() => setPreviewSoalModal(null)}
+                className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                Tutup Pratinjau
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* TP Management Modal */}
       <TpManagementModal
         isOpen={isTpModalOpen}

@@ -637,7 +637,7 @@ apiRouter.get('/paket-ujian/:id', (req: Request, res: Response) => {
   const mapel = db.mapelList.find((m) => m.id === pkt.mapel_id);
 
   // Group items by variant
-  const items = db.paketItemsList
+  let items = db.paketItemsList
     .filter((pi) => pi.paket_ujian_id === id)
     .map((pi) => {
       const butir = db.butirSoalList.find((b) => b.id === pi.butir_soal_id);
@@ -645,7 +645,49 @@ apiRouter.get('/paket-ujian/:id', (req: Request, res: Response) => {
         ...pi,
         butir_soal: butir,
       };
+    })
+    .filter((pi) => Boolean(pi.butir_soal));
+
+  // Fallback: If no items exist in DB for this package, auto-generate items from available questions
+  if (items.length === 0) {
+    const candidateSoals = db.butirSoalList.filter((b) => b.mapel_id === pkt.mapel_id);
+    const pool = candidateSoals.length > 0 ? candidateSoals : db.butirSoalList;
+    const pg = pool.filter((b) => b.jenis_soal !== 'ESAI_URAIAN').slice(0, pkt.total_soal_pg || 2);
+    const es = pool.filter((b) => b.jenis_soal === 'ESAI_URAIAN').slice(0, pkt.total_soal_esai || 1);
+    const base = [...pg, ...es];
+
+    base.forEach((b, idx) => {
+      const itemA = {
+        id: `item-${pkt.id}-a-${idx + 1}`,
+        paket_ujian_id: pkt.id,
+        butir_soal_id: b.id,
+        kode_varian_paket: 'A' as const,
+        nomor_urut: idx + 1,
+      };
+      db.paketItemsList.push(itemA);
+      items.push({ ...itemA, butir_soal: b });
+
+      const itemB = {
+        id: `item-${pkt.id}-b-${idx + 1}`,
+        paket_ujian_id: pkt.id,
+        butir_soal_id: b.id,
+        kode_varian_paket: 'B' as const,
+        nomor_urut: idx + 1,
+      };
+      db.paketItemsList.push(itemB);
+      items.push({ ...itemB, butir_soal: b });
+
+      const itemCad = {
+        id: `item-${pkt.id}-cad-${idx + 1}`,
+        paket_ujian_id: pkt.id,
+        butir_soal_id: b.id,
+        kode_varian_paket: 'CADANGAN' as const,
+        nomor_urut: idx + 1,
+      };
+      db.paketItemsList.push(itemCad);
+      items.push({ ...itemCad, butir_soal: b });
     });
+  }
 
   const variantA = items.filter((i) => i.kode_varian_paket === 'A').sort((a, b) => a.nomor_urut - b.nomor_urut);
   const variantB = items.filter((i) => i.kode_varian_paket === 'B').sort((a, b) => a.nomor_urut - b.nomor_urut);

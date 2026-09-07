@@ -78,6 +78,7 @@ export const KoordinatorView: React.FC<KoordinatorViewProps> = () => {
 
   // Detail Paket Modal
   const [detailPaketModal, setDetailPaketModal] = useState<any | null>(null);
+  const [detailVariantTab, setDetailVariantTab] = useState<'A' | 'B' | 'CADANGAN'>('A');
 
   const loadData = async (isManual = false) => {
     try {
@@ -224,10 +225,23 @@ export const KoordinatorView: React.FC<KoordinatorViewProps> = () => {
   const handleViewDetail = async (id: string) => {
     try {
       setLoading(true);
+      setErrorMsg(null);
+      setDetailVariantTab('A');
       const detail = await apiService.getPaketDetail(id);
-      setDetailPaketModal(detail);
+      if (detail) {
+        setDetailPaketModal(detail);
+      } else {
+        const fbDetail = fallbackStore.getPaketDetail(id);
+        setDetailPaketModal(fbDetail);
+      }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Gagal memuat rincian paket');
+      console.warn('Error loading paket detail from API, using fallback store:', err);
+      try {
+        const fbDetail = fallbackStore.getPaketDetail(id);
+        setDetailPaketModal(fbDetail);
+      } catch {
+        setErrorMsg(err.message || 'Gagal memuat rincian paket');
+      }
     } finally {
       setLoading(false);
     }
@@ -1109,59 +1123,217 @@ export const KoordinatorView: React.FC<KoordinatorViewProps> = () => {
       {/* ------------------------------------------------------------- */}
       {/* DETAIL PAKET MODAL */}
       {/* ------------------------------------------------------------- */}
-      {detailPaketModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl max-w-2xl w-full p-6 max-h-[85vh] overflow-y-auto space-y-4">
-            <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-3">
-              <div>
-                <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                  Rincian Butir Soal Paket: {detailPaketModal.paket.kode_ujian}
-                </h3>
-                <p className="text-xs text-slate-500">{detailPaketModal.paket.judul_ujian}</p>
-              </div>
-              <button
-                onClick={() => setDetailPaketModal(null)}
-                className="text-slate-400 hover:text-slate-600 font-bold"
-              >
-                ✕
-              </button>
-            </div>
+      {detailPaketModal && (() => {
+        const pkt = detailPaketModal.paket || (detailPaketModal.kode_ujian ? detailPaketModal : null);
+        const mapel = detailPaketModal.mapel || (pkt ? mapelList.find((m) => m.id === pkt.mapel_id) : null);
+        const varianObj = detailPaketModal.varian || {
+          A: detailPaketModal.items_varian_a || [],
+          B: detailPaketModal.items_varian_b || [],
+          CADANGAN: detailPaketModal.items_varian_cadangan || [],
+        };
+        const currentItems: any[] = varianObj[detailVariantTab] || varianObj.A || [];
 
-            <div className="space-y-3 text-xs">
-              <h4 className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">
-                Susunan Varian Paket A:
-              </h4>
-              {detailPaketModal.varian.A.map((item: any) => (
-                <div
-                  key={item.id}
-                  className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 flex items-start gap-2"
-                >
-                  <span className="font-bold min-w-[24px] text-indigo-600">{item.nomor_urut}.</span>
-                  <div className="flex-1">
-                    <div className="font-medium text-slate-900 dark:text-slate-100 mb-1">
-                      <MathRenderer content={item.butir_soal?.pertanyaan_teks || ''} />
-                    </div>
-                    <div className="flex items-center gap-3 text-[11px] text-slate-500">
-                      <span>Level: <strong>{item.butir_soal?.level_kognitif}</strong></span>
-                      <span>Tipe: <strong>{item.butir_soal?.jenis_soal}</strong></span>
-                      <span>Bobot: <strong>{item.butir_soal?.bobot_nilai} Poin</strong></span>
-                    </div>
+        return (
+          <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto space-y-4 shadow-2xl border border-slate-200 dark:border-slate-700">
+              {/* Modal Header */}
+              <div className="flex justify-between items-start border-b border-slate-200 dark:border-slate-700 pb-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="px-2.5 py-0.5 rounded-lg font-mono font-black text-xs bg-indigo-600 text-white">
+                      {pkt?.kode_ujian || 'PAKET-UJIAN'}
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold uppercase bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200">
+                      {mapel?.nama_mapel || 'Mata Pelajaran'} • {mapel?.tingkat_kelas || ''}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-md text-[11px] font-black uppercase ${
+                      pkt?.status_paket === 'TERKUNCI' 
+                        ? 'bg-red-100 text-red-800 border border-red-200' 
+                        : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                    }`}>
+                      {pkt?.status_paket === 'TERKUNCI' ? '🔒 TERKUNCI (FREEZE)' : '📝 DRAFT RESMI'}
+                    </span>
+                  </div>
+                  <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                    {pkt?.judul_ujian || 'Rincian Butir Soal Naskah Ujian'}
+                  </h3>
+                  <div className="flex items-center gap-3 text-xs text-slate-500 flex-wrap pt-0.5">
+                    <span>Alokasi: <strong>{pkt?.durasi_menit || 60} Menit</strong></span>
+                    <span>•</span>
+                    <span>Bentuk: <strong>{pkt?.total_soal_pg || 0} PG & {pkt?.total_soal_esai || 0} Esai</strong></span>
+                    <span>•</span>
+                    <span>Target: <strong>L1: {pkt?.target_l1 || 0} | L2: {pkt?.target_l2 || 0} | L3: {pkt?.target_l3 || 0}</strong></span>
                   </div>
                 </div>
-              ))}
-            </div>
+                <button
+                  onClick={() => setDetailPaketModal(null)}
+                  className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition cursor-pointer"
+                  title="Tutup"
+                >
+                  ✕
+                </button>
+              </div>
 
-            <div className="flex justify-end pt-3">
-              <button
-                onClick={() => setDetailPaketModal(null)}
-                className="px-4 py-2 bg-slate-800 text-white rounded-lg text-xs font-semibold"
-              >
-                Tutup
-              </button>
+              {/* Variant Tabs */}
+              <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-2">
+                {(['A', 'B', 'CADANGAN'] as const).map((vKey) => {
+                  const count = varianObj[vKey]?.length || 0;
+                  const isActive = detailVariantTab === vKey;
+                  return (
+                    <button
+                      key={vKey}
+                      onClick={() => setDetailVariantTab(vKey)}
+                      className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                        isActive
+                          ? 'bg-indigo-600 text-white shadow-xs'
+                          : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                      }`}
+                    >
+                      <span>Varian {vKey === 'CADANGAN' ? 'Cadangan' : vKey}</span>
+                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono ${
+                        isActive ? 'bg-indigo-800 text-white' : 'bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300'
+                      }`}>
+                        {count} Butir
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Items List */}
+              <div className="space-y-3 max-h-[55vh] overflow-y-auto pr-1">
+                {currentItems.length === 0 ? (
+                  <div className="text-center py-8 text-slate-400 text-xs">
+                    Belum ada butir soal yang diatur pada varian ini.
+                  </div>
+                ) : (
+                  currentItems.map((item: any, idx: number) => {
+                    const butir = item.butir_soal || (item.pertanyaan_teks ? item : null);
+                    const noUrut = item.nomor_urut || idx + 1;
+                    const opsi = butir?.opsi_jawaban_json || [];
+
+                    return (
+                      <div
+                        key={item.id || idx}
+                        className="p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 text-xs space-y-2.5"
+                      >
+                        {/* Header of Question */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 dark:border-slate-700 pb-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold min-w-[28px] text-indigo-600 text-sm">
+                              #{noUrut}
+                            </span>
+                            <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 font-bold rounded text-[11px]">
+                              {butir?.jenis_soal ? butir.jenis_soal.replace('_', ' ') : 'PILIHAN GANDA'}
+                            </span>
+                            <span className="px-2 py-0.5 bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 font-bold rounded text-[11px]">
+                              Level {butir?.level_kognitif || 'L1'}
+                            </span>
+                            <span className="text-slate-500 font-semibold text-[11px]">
+                              Bobot: <strong>{butir?.bobot_nilai || 10} Poin</strong>
+                            </span>
+                          </div>
+
+                          {butir?.kode_tp && (
+                            <div className="flex items-center gap-1.5 bg-indigo-100/70 dark:bg-indigo-950/50 text-indigo-900 dark:text-indigo-200 px-2 py-0.5 rounded text-[11px] font-medium">
+                              <Target className="w-3 h-3 text-indigo-600" />
+                              <span className="font-mono font-bold">{butir.kode_tp}</span>
+                              {butir.lingkup_materi && <span>• {butir.lingkup_materi}</span>}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Stimulus if exists */}
+                        {butir?.stimulus_konten && (
+                          <div className="p-2.5 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 leading-relaxed text-[11px]">
+                            <span className="text-[10px] font-bold text-slate-400 block mb-1 uppercase tracking-wider">
+                              Stimulus Konteks:
+                            </span>
+                            <MathRenderer content={butir.stimulus_konten} />
+                          </div>
+                        )}
+
+                        {/* Question Text */}
+                        <div className="text-slate-900 dark:text-slate-100 font-medium text-xs leading-relaxed">
+                          <MathRenderer content={butir?.pertanyaan_teks || 'Teks pertanyaan belum tersedia'} />
+                        </div>
+
+                        {/* Options List for Multiple Choice */}
+                        {opsi.length > 0 && (
+                          <div className="space-y-1.5 pt-1">
+                            {opsi.map((opt: any) => {
+                              const isKey =
+                                typeof butir?.kunci_jawaban_terenkripsi === 'string'
+                                  ? butir.kunci_jawaban_terenkripsi === opt.id
+                                  : Array.isArray(butir?.kunci_jawaban_terenkripsi)
+                                  ? butir.kunci_jawaban_terenkripsi.includes(opt.id)
+                                  : false;
+
+                              return (
+                                <div
+                                  key={opt.id}
+                                  className={`p-2 rounded-lg flex items-start gap-2 border transition ${
+                                    isKey
+                                      ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 font-medium text-emerald-900 dark:text-emerald-200'
+                                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                                  }`}
+                                >
+                                  <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[11px] shrink-0 ${
+                                    isKey ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                                  }`}>
+                                    {opt.id}
+                                  </span>
+                                  <div className="flex-1 text-xs">
+                                    <MathRenderer content={opt.teks} />
+                                  </div>
+                                  {isKey && (
+                                    <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-900/60 rounded">
+                                      ✓ Kunci Jawaban
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Essay Rubric */}
+                        {butir?.jenis_soal === 'ESAI_URAIAN' && butir?.rubrik_penilaian && (
+                          <div className="p-2 bg-amber-50 dark:bg-amber-950/40 rounded-lg border border-amber-200 text-amber-900 dark:text-amber-200 text-[11px]">
+                            <strong>Pedoman Penskoran:</strong> {butir.rubrik_penilaian}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-700">
+                <button
+                  onClick={() => {
+                    const pktId = pkt?.id;
+                    setDetailPaketModal(null);
+                    if (pktId) handleOpenPrint(pktId, detailVariantTab);
+                  }}
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Cetak 2-Kolom (Varian {detailVariantTab})</span>
+                </button>
+
+                <button
+                  onClick={() => setDetailPaketModal(null)}
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-bold transition cursor-pointer"
+                >
+                  Tutup
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
       {/* TP Management Modal for SD (Fase A-C) */}
       <TpManagementModal
         isOpen={isTpModalOpen}

@@ -7,6 +7,7 @@ import { ProktorView } from './components/ProktorView';
 import { SiswaCbtView } from './components/SiswaCbtView';
 import { AuditLogsModal } from './components/AuditLogsModal';
 import { TpManagementModal } from './components/TpManagementModal';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { apiService } from './services/api';
 import { Shield, Lock, EyeOff, Layers, CheckCircle2 } from 'lucide-react';
 
@@ -57,18 +58,20 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {currentRole === 'KOORDINATOR_KURIKULUM' && (
-          <KoordinatorView key={refreshKey} />
-        )}
-        {currentRole === 'GURU_PENULIS' && (
-          <GuruPenulisView key={refreshKey} />
-        )}
-        {currentRole === 'PROKTOR_PENGAWAS' && (
-          <ProktorView key={refreshKey} />
-        )}
-        {currentRole === 'SISWA_CBT' && (
-          <SiswaCbtView key={refreshKey} />
-        )}
+        <ErrorBoundary>
+          {currentRole === 'KOORDINATOR_KURIKULUM' && (
+            <KoordinatorView key={refreshKey} />
+          )}
+          {currentRole === 'GURU_PENULIS' && (
+            <GuruPenulisView key={refreshKey} />
+          )}
+          {currentRole === 'PROKTOR_PENGAWAS' && (
+            <ProktorView key={refreshKey} />
+          )}
+          {currentRole === 'SISWA_CBT' && (
+            <SiswaCbtView key={refreshKey} />
+          )}
+        </ErrorBoundary>
       </main>
 
       {/* Architectural Standard & Security Badges Footer */}

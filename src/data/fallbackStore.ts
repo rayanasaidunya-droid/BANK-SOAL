@@ -363,20 +363,85 @@ export const fallbackStore = {
     return list;
   },
 
-  getPaketDetail(id: string): any {
+  getPaketDetail(id: string): {
+    paket: PaketUjian;
+    mapel: MataPelajaranKurikulum;
+    varian: {
+      A: any[];
+      B: any[];
+      CADANGAN: any[];
+    };
+  } {
     const pakets = this.getPaketList();
-    const pkt = pakets.find((p) => p.id === id) || pakets[0];
+    const pkt = pakets.find((p) => p.id === id) || pakets[0] || INITIAL_PAKET_LIST[0];
     const mapels = this.getMapel();
     const mapel = mapels.find((m) => m.id === pkt.mapel_id) || mapels[0];
-    const allSoal = this.getBankSoal({ mapel_id: pkt.mapel_id });
+    
+    let soals = this.getBankSoal({ mapel_id: pkt.mapel_id });
+    if (!soals || soals.length === 0) {
+      soals = this.getBankSoal();
+    }
+    if (!soals || soals.length === 0) {
+      soals = INITIAL_BUTIR_SOAL_LIST;
+    }
+
+    const pgSoals = soals.filter((s) => s.jenis_soal !== 'ESAI_URAIAN');
+    const esaiSoals = soals.filter((s) => s.jenis_soal === 'ESAI_URAIAN');
+
+    const numPg = pkt.total_soal_pg || Math.max(1, pgSoals.length);
+    const numEsai = pkt.total_soal_esai || (esaiSoals.length > 0 ? 1 : 0);
+
+    const selectedPg = pgSoals.length > 0 ? pgSoals.slice(0, numPg) : soals.slice(0, 2);
+    const selectedEsai = esaiSoals.slice(0, numEsai);
+    const baseItems = [...selectedPg, ...selectedEsai];
+
+    const variantA = baseItems.map((b, idx) => ({
+      id: `item-${pkt.id}-a-${idx + 1}`,
+      paket_ujian_id: pkt.id,
+      kode_varian_paket: 'A' as const,
+      nomor_urut: idx + 1,
+      butir_soal_id: b.id,
+      butir_soal: b,
+    }));
+
+    const bPg = selectedPg.length > 1
+      ? [...selectedPg.slice(Math.floor(selectedPg.length / 2)), ...selectedPg.slice(0, Math.floor(selectedPg.length / 2))]
+      : [...selectedPg];
+    const bItems = [...bPg, ...selectedEsai];
+    const variantB = bItems.map((b, idx) => ({
+      id: `item-${pkt.id}-b-${idx + 1}`,
+      paket_ujian_id: pkt.id,
+      kode_varian_paket: 'B' as const,
+      nomor_urut: idx + 1,
+      butir_soal_id: b.id,
+      butir_soal: b,
+    }));
+
+    const variantCadangan = baseItems.map((b, idx) => ({
+      id: `item-${pkt.id}-cad-${idx + 1}`,
+      paket_ujian_id: pkt.id,
+      kode_varian_paket: 'CADANGAN' as const,
+      nomor_urut: idx + 1,
+      butir_soal_id: b.id,
+      butir_soal: b,
+    }));
+
     return {
-      ...pkt,
-      mapel_nama: mapel ? `${mapel.nama_mapel} (${mapel.tingkat_kelas})` : 'Mapel Umum',
-      jenjang_sekolah: mapel?.jenjang_sekolah || 'SD',
-      fase_kurikulum: mapel?.fase_kurikulum || 'Fase B',
-      items_varian_a: allSoal.slice(0, 5),
-      items_varian_b: allSoal.slice(0, 5).reverse(),
-      items_varian_cadangan: allSoal.slice(0, 5),
+      paket: pkt,
+      mapel: mapel || {
+        id: pkt.mapel_id,
+        nama_mapel: 'Mata Pelajaran',
+        kode_mapel: 'MAPEL-01',
+        jenjang_sekolah: 'SD',
+        tingkat_kelas: 'Kelas 4',
+        fase_kurikulum: 'Fase B',
+        daftar_tp: [],
+      },
+      varian: {
+        A: variantA,
+        B: variantB,
+        CADANGAN: variantCadangan,
+      },
     };
   },
 
